@@ -50,7 +50,7 @@ from gaston.neural_net import get_loss
 
 #     return best_mod, A, S
 
-def process_files(output_folder, output_torch=False, epoch_number='final', seed_list=None):
+def process_files(output_folder, output_torch=False, epoch_number='final', seed_list=None, mod_path=None):
     smallest_loss = np.inf
     best_model_folder_path = None
     best_mod=None
@@ -93,12 +93,13 @@ def process_files(output_folder, output_torch=False, epoch_number='final', seed_
                             highest_epoch = epoch_num
                             highest_epoch_file = filename
                 model_path=os.path.join(folder_path, highest_epoch_file)
-        
+
+            #print(f'modelpath is: {model_path}')
             mod =  torch.load(model_path)
             # Ensure model is on CPU
             mod = mod.cpu()
             loss = get_loss(mod,St,At)
-            # print(f'model: {model_path}, loss:{loss}')
+            #print(f'model: {model_path}, loss:{loss}')
 
             # compare against other models with different seeds
             if loss < smallest_loss:
@@ -107,7 +108,24 @@ def process_files(output_folder, output_torch=False, epoch_number='final', seed_
                 best_mod=mod
                 
     print(f'\nbest model: {best_model_folder_path}')
-    if best_model_folder_path:
+    if mod_path is not None:
+        best_mod =  torch.load(os.path.join(mod_path,'final_model.pt')).cpu()
+        print(f'loaded model {best_mod} and mod_path{mod_path}')
+        storch_path = os.path.join(mod_path, 'Storch.pt')
+        atorch_path = os.path.join(mod_path, 'Atorch.pt')
+
+        if os.path.exists(storch_path) and os.path.exists(atorch_path):
+            A_torch = torch.load(atorch_path)
+            S_torch = torch.load(storch_path)
+            
+            # Ensure data is on CPU
+            A_torch = A_torch.cpu()
+            S_torch = S_torch.cpu()
+
+            A = A_torch.cpu().detach().numpy()
+            S = S_torch.cpu().detach().numpy()
+            
+    elif best_model_folder_path:
         # folder_name = os.path.basename(os.path.dirname(best_model_path))
         storch_path = os.path.join(best_model_folder_path, 'Storch.pt')
         atorch_path = os.path.join(best_model_folder_path, 'Atorch.pt')
@@ -122,7 +140,6 @@ def process_files(output_folder, output_torch=False, epoch_number='final', seed_
 
             A = A_torch.cpu().detach().numpy()
             S = S_torch.cpu().detach().numpy()
-
     else:
         raise Exception("No model found in any folder.")
 

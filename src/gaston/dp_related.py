@@ -248,3 +248,33 @@ def get_isodepth_labels(model, A, S, num_domains, num_buckets=50, num_pcs_A=None
         c+=1
     
     return gaston_isodepth,gaston_labels
+    
+def get_isodepth_labels_multi(model, A, S, num_domains, num_buckets=50, num_pcs_A=None):
+    N=A.shape[0]
+        
+    S_torch=torch.Tensor(S)
+
+    # if model.pos_encoding:
+    #     S_torch = positional_encoding(S_torch, model.embed_size, model.sigma)
+
+    gaston_isodepth=model.spatial_embedding(S_torch).detach().numpy()
+    gaston_labels=[]
+    for i in range(3):
+        kmax=num_domains
+        
+        if num_pcs_A is not None:
+            A=A[:,:num_pcs_A]
+        
+        bin_endpoints=np.linspace(np.min(gaston_isodepth[:,i]),np.max(gaston_isodepth[:,i])+0.01,num_buckets+1)
+        error_mat,seg_map=dp_bucketized(A.T, bin_endpoints, kmax, xcoords=gaston_isodepth[:,i])
+        bin_labels=np.digitize(gaston_isodepth[:,i],bin_endpoints)
+    
+        segs=find_segments_from_dp(error_mat, seg_map, num_domains)
+        gaston_labels.append(np.zeros(N))
+        c=0
+        for seg in segs:
+            for s in seg:
+                gaston_labels[i][ np.where(bin_labels==s+1)[0] ] = c
+            c+=1
+    
+    return gaston_isodepth,gaston_labels

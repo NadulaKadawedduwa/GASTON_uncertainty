@@ -53,7 +53,6 @@ class GASTON(nn.Module):
         activation_fn=nn.ReLU(),
         embed_size=4,
         sigma=0.1,
-        dropout=0.0,
     ):
         super(GASTON, self).__init__()
 
@@ -61,9 +60,10 @@ class GASTON(nn.Module):
         self.sigma = sigma
 
         input_size = 2
-        dropout_prob = dropout
+        dropout_prob = 0.5
         
         # create spatial embedding f_S
+        # Change center hidden to 1 or 3
         S_layer_list=[input_size] + S_hidden_list + [1]
         S_layers=[]
         for l in range(len(S_layer_list)-1):
@@ -72,12 +72,12 @@ class GASTON(nn.Module):
             # add activation function except for last layer
             if l != len(S_layer_list)-2:
                 S_layers.append(activation_fn)
-                #S_layers.append(nn.Dropout(p=dropout_prob))
+                S_layers.append(nn.Dropout(p=dropout_prob))
                 
         self.spatial_embedding=nn.Sequential(*S_layers)
         
         # create expression function f_A
-        A_layer_list=[1] + A_hidden_list + [G]
+        A_layer_list=[3] + A_hidden_list + [G]
         A_layers=[]
         for l in range(len(A_layer_list)-1):
             # add linear layer
@@ -85,7 +85,7 @@ class GASTON(nn.Module):
             # add activation function except for last layer
             if l != len(A_layer_list)-2:
                 A_layers.append(activation_fn)
-                #A_layers.append(nn.Dropout(p=dropout_prob))
+                A_layers.append(nn.Dropout(p=dropout_prob))
             
         self.expression_function=nn.Sequential(*A_layers)
 
@@ -93,9 +93,11 @@ class GASTON(nn.Module):
         z = self.spatial_embedding(x) # relative depth
         return self.expression_function(z)
 
+
     def embed(self, x):
         #z = self.spatial_embedding(x) # relative depth
         return self.spatial_embedding(x)
+
 ##################################################################################
 # Train NN
 # Inputs: 
@@ -117,7 +119,7 @@ def train(S, A,
           epochs=1000, batch_size=None, 
           checkpoint=100, save_dir=None, loss_reduction='mean',
           optim='sgd', lr=1e-3, weight_decay=0, momentum=0, seed=0, save_final=False,
-          embed_size=4, sigma=0.1,device=None, dropout=0.0):
+          embed_size=4, sigma=0.1,device=None):
     """
     Train GASTON model from scratch
     
@@ -154,7 +156,7 @@ def train(S, A,
     print(f'Training on device: {device}')
     N,G=A.shape
     if gaston_model == None:
-        gaston_model=GASTON(A.shape[1], S_hidden_list, A_hidden_list, activation_fn=activation_fn, embed_size=embed_size, sigma=sigma, dropout=dropout)
+        gaston_model=GASTON(A.shape[1], S_hidden_list, A_hidden_list, activation_fn=activation_fn, embed_size=embed_size, sigma=sigma)
     
     # Move model to device
     gaston_model = gaston_model.to(device)
